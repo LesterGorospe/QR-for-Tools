@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Construction Tools QR Inventory</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- QR Code JS Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            .card { border: 1px solid #ddd !important; break-inside: avoid; }
+        }
+    </style>
+</head>
+<body class="bg-light">
+
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>🏗️ Construction Tools Inventory</h2>
+            <div>
+                <a href="scanner.html" class="btn btn-success me-2">📷 Open Scanner</a>
+                <button class="btn btn-primary no-print" onclick="openAddModal()">+ Add New Tool</button>
+            </div>
+        </div>
+
+        <!-- Tools Grid List -->
+        <div class="row" id="tools-grid">
+            <!-- Dynamic tools from LocalStorage will load here -->
+        </div>
+    </div>
+
+    <!-- Modal for Adding a Tool -->
+    <div class="modal fade" id="addToolModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Tool</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addToolForm">
+                        <div class="mb-3">
+                            <label class="form-label">Tool ID (e.g., TOOL-001)</label>
+                            <input type="text" class="form-control" id="toolIdInput" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tool Name (e.g., Heavy Duty Drill)</label>
+                            <input type="text" class="form-control" id="toolNameInput" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Save Tool</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Default mock data if localStorage is empty
+        let defaultTools = [
+            { id: "TOOL-001", name: "Makita Rotary Hammer", status: "Available", borrower: "" },
+            { id: "TOOL-002", name: "Bosch Angle Grinder", status: "Available", borrower: "" },
+            { id: "TOOL-003", name: "Aluminum Ladder 8ft", status: "Available", borrower: "" }
+        ];
+
+        function getTools() {
+            let tools = localStorage.getItem('construction_tools');
+            if (!tools) {
+                localStorage.setItem('construction_tools', JSON.stringify(defaultTools));
+                return defaultTools;
+            }
+            return JSON.parse(tools);
+        }
+
+        function renderTools() {
+            let tools = getTools();
+            let grid = document.getElementById('tools-grid');
+            grid.innerHTML = '';
+
+            tools.forEach(tool => {
+                let badgeClass = tool.status === 'Available' ? 'bg-success' : 'bg-danger';
+                let cardHTML = `
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100 shadow-sm text-center p-3">
+                            <h5 class="fw-bold">${tool.name}</h5>
+                            <p class="text-muted small mb-2">ID: ${tool.id}</p>
+                            <div class="my-2 d-flex justify-content-center">
+                                <div id="qrcode-${tool.id}"></div>
+                            </div>
+                            <div class="mt-2">
+                                <span class="badge ${badgeClass} mb-2">${tool.status}</span>
+                                ${tool.borrower ? `<p class="small text-danger mb-0">Borrowed by: <strong>${tool.borrower}</strong></p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.innerHTML += cardHTML;
+            });
+
+            // Generate QR codes pointing to scanner.html with the corresponding tool ID
+            tools.forEach(tool => {
+                let qrContainer = document.getElementById(`qrcode-${tool.id}`);
+                qrContainer.innerHTML = ""; 
+                
+                let baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+                let targetUrl = baseUrl + `scanner.html?id=${tool.id}`;
+
+                new QRCode(qrContainer, {
+                    text: targetUrl,
+                    width: 128,
+                    height: 128
+                });
+            });
+        }
+
+        function openAddModal() {
+            let myModal = new bootstrap.Modal(document.getElementById('addToolModal'));
+            myModal.show();
+        }
+
+        document.getElementById('addToolForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            let id = document.getElementById('toolIdInput').value.trim();
+            let name = document.getElementById('toolNameInput').value.trim();
+
+            let tools = getTools();
+            if(tools.some(t => t.id === id)) {
+                alert('Tool ID already exists!');
+                return;
+            }
+
+            tools.push({ id: id, name: name, status: "Available", borrower: "" });
+            localStorage.setItem('construction_tools', JSON.stringify(tools));
+            
+            location.reload();
+        });
+
+        window.onload = renderTools;
+    </script>
+</body>
+</html>

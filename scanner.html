@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Status & Action</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+    <div class="container py-5" style="max-width: 500px;">
+        <div class="card shadow p-4">
+            <h3 class="mb-3 text-center">🔧 Tool Details</h3>
+            
+            <div id="loading-view" class="text-center py-4">
+                <p>Binabasa ang QR Code...</p>
+            </div>
+
+            <div id="tool-content" style="display: none;">
+                <div class="mb-3">
+                    <label class="form-label text-muted">Tool ID</label>
+                    <h4 id="display-id" class="fw-bold"></h4>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted">Pangalan ng Kagamitan</label>
+                    <h4 id="display-name" class="text-primary"></h4>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label text-muted">Kasalukuyang Status</label>
+                    <div><span id="display-status" class="badge fs-6"></span></div>
+                    <p id="display-borrower-info" class="mt-2 text-danger fw-semibold"></p>
+                </div>
+
+                <!-- Form para sa paghiram o pagbabalik -->
+                <div id="action-container">
+                    <!-- Dito papasok ang input field o return button dynamically -->
+                </div>
+            </div>
+
+            <div class="mt-4 text-center">
+                <a href="index.html" class="btn btn-secondary w-100">Bumalik sa Listahan</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getQueryParams() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
+
+        function loadToolData() {
+            let toolId = getQueryParams();
+            let loadingView = document.getElementById('loading-view');
+            let toolContent = document.getElementById('tool-content');
+
+            if (!toolId) {
+                loadingView.innerHTML = `<div class="alert alert-danger">Walang napiling Tool ID sa QR Code.</div>`;
+                return;
+            }
+
+            let tools = JSON.parse(localStorage.getItem('construction_tools')) || [];
+            let tool = tools.find(t => t.id === toolId);
+
+            loadingView.style.display = 'none';
+            toolContent.style.display = 'block';
+
+            if (!tool) {
+                document.getElementById('tool-content').innerHTML = `<div class="alert alert-danger">Hindi nahanap ang tool na may ID na: ${toolId}</div>`;
+                return;
+            }
+
+            document.getElementById('display-id').innerText = tool.id;
+            document.getElementById('display-name').innerText = tool.name;
+            
+            let statusBadge = document.getElementById('display-status');
+            let borrowerInfo = document.getElementById('display-borrower-info');
+            let actionContainer = document.getElementById('action-container');
+
+            if (tool.status === 'Available') {
+                statusBadge.className = 'badge bg-success fs-6';
+                statusBadge.innerText = 'Available (Handang Hiramin)';
+                borrowerInfo.innerText = '';
+
+                // Form para hiramin
+                actionContainer.innerHTML = `
+                    <div class="mb-3">
+                        <label class="form-label">Pangalan ng Manggagawa / Humiram:</label>
+                        <input type="text" id="borrowerNameInput" class="form-control" placeholder="Ilagay ang pangalan..." required>
+                    </div>
+                    <button onclick="borrowTool('${tool.id}')" class="btn btn-primary w-100 py-2">I-record ang Paghiram</button>
+                `;
+            } else {
+                statusBadge.className = 'badge bg-danger fs-6';
+                statusBadge.innerText = 'Hiram (Nasa Site/Manggagawa)';
+                borrowerInfo.innerText = `Humiram: ${tool.borrower}`;
+
+                // Button para ibalik
+                actionContainer.innerHTML = `
+                    <button onclick="returnTool('${tool.id}')" class="btn btn-success w-100 py-2">I-click para Ibalik ang Tool</button>
+                `;
+            }
+        }
+
+        function borrowTool(toolId) {
+            let nameInput = document.getElementById('borrowerNameInput').value.trim();
+            if (!nameInput) {
+                alert('Pakilagay ang pangalan ng humiram.');
+                return;
+            }
+
+            let tools = JSON.parse(localStorage.getItem('construction_tools')) || [];
+            let index = tools.findIndex(t => t.id === toolId);
+            if (index !== -1) {
+                tools[index].status = 'Borrowed';
+                tools[index].borrower = nameInput;
+                localStorage.setItem('construction_tools', JSON.stringify(tools));
+                alert('Matagumpay na naitala ang paghiram!');
+                location.reload();
+            }
+        }
+
+        function returnTool(toolId) {
+            let tools = JSON.parse(localStorage.getItem('construction_tools')) || [];
+            let index = tools.findIndex(t => t.id === toolId);
+            if (index !== -1) {
+                tools[index].status = 'Available';
+                tools[index].borrower = '';
+                localStorage.setItem('construction_tools', JSON.stringify(tools));
+                alert('Naibalik na ang tool at naging Available ulit!');
+                location.reload();
+            }
+        }
+
+        window.onload = loadToolData;
+    </script>
+</body>
+</html>
