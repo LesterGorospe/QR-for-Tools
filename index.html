@@ -84,9 +84,9 @@
     <!-- Firebase SDK & Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-      const firebaseConfig = {
+       const firebaseConfig = {
   apiKey: "AIzaSyDdmaBBGzrw8LN3Cg_WvzxxqLy4pTS9VMU",
   authDomain: "qr-tool-inventory.firebaseapp.com",
   projectId: "qr-tool-inventory",
@@ -95,6 +95,7 @@
   appId: "1:833534977362:web:23c9944c47e0ca97b8868b",
   measurementId: "G-GE9CPP1RZR"
 };
+
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
@@ -143,11 +144,16 @@
                     const col = document.createElement('div');
                     col.className = 'col';
                     col.innerHTML = `
-                        <div class="card h-100 shadow-sm text-center p-3">
-                            <h5 class="card-title">${tool.name}</h5>
-                            <p class="text-muted small mb-2">ID: ${tool.id}</p>
-                            <div id="qrcode-${tool.id}" class="d-flex justify-content-center my-2"></div>
-                            <div class="mt-2">${statusBadge}</div>
+                        <div class="card h-100 shadow-sm text-center p-3 d-flex flex-column justify-content-between">
+                            <div>
+                                <h5 class="card-title">${tool.name}</h5>
+                                <p class="text-muted small mb-2">ID: ${tool.id}</p>
+                                <div id="qrcode-${tool.id}" class="d-flex justify-content-center my-2"></div>
+                                <div class="mt-2 mb-3">${statusBadge}</div>
+                            </div>
+                            <div>
+                                <button class="btn btn-outline-danger btn-sm w-100 delete-tool-btn" data-id="${tool.id}">Delete Tool</button>
+                            </div>
                         </div>
                     `;
                     grid.appendChild(col);
@@ -180,6 +186,7 @@
                     borrowedTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No currently borrowed tools.</td></tr>`;
                 }
 
+                // Attach event listeners for Return buttons
                 document.querySelectorAll('.return-btn').forEach(button => {
                     button.addEventListener('click', async (e) => {
                         const toolId = e.target.getAttribute('data-id');
@@ -194,6 +201,21 @@
                         }
                     });
                 });
+
+                // Attach event listeners for Delete buttons
+                document.querySelectorAll('.delete-tool-btn').forEach(button => {
+                    button.addEventListener('click', async (e) => {
+                        const toolId = e.target.getAttribute('data-id');
+                        if (confirm(`Are you sure you want to delete tool ${toolId}?`)) {
+                            try {
+                                await deleteDoc(doc(db, "tools", toolId));
+                            } catch (err) {
+                                alert("Error deleting tool: " + err.message);
+                            }
+                        }
+                    });
+                });
+
             }, (error) => {
                 statusMsg.className = "alert alert-danger py-2";
                 statusMsg.innerText = "Firebase connection error: " + error.message;
