@@ -3,81 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Construction Tools QR Inventory</title>
+    <title>Construction Tools Inventory (Cloud Sync)</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- QR Code JS Library -->
+    <!-- QRCode JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <style>
-        @media print {
-            .no-print { display: none !important; }
-            .card { border: 1px solid #ddd !important; break-inside: avoid; }
-        }
-    </style>
 </head>
 <body class="bg-light">
 
-    <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>🏗️ Construction Tools Inventory (Cloud Sync)</h2>
+    <div class="container py-4">
+        <header class="pb-3 mb-4 border-bottom d-flex justify-content-between align-items-center">
+            <h1 class="h3">🏗️ Construction Tools Inventory (Cloud Sync)</h1>
             <div>
-                <a href="scanner.html" class="btn btn-success me-2">📷 Open Scanner</a>
-                <button class="btn btn-primary no-print" onclick="openAddModal()">+ Add New Tool</button>
+                <a href="scanner.html" class="btn btn-success me-2">Open Scanner</a>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addToolModal">+ Add New Tool</button>
             </div>
+        </header>
+
+        <!-- Status Message -->
+        <div id="status-message" class="alert alert-info py-2">Loading tools from cloud database...</div>
+
+        <!-- TOOLS GRID -->
+        <h2 class="h4 mb-3">All Tools & QR Codes</h2>
+        <div class="row row-cols-1 row-cols-md-3 g-4 mb-5" id="tools-grid">
+            <!-- Dynamic Tool Cards will load here -->
         </div>
 
-        <!-- Tools Grid List -->
-        <div class="row" id="tools-grid">
-            <div class="text-center py-5" id="loading-text">
-                <p>Loading tools from cloud database...</p>
+        <!-- BORROWED TOOLS SUMMARY SECTION -->
+        <div class="card shadow-sm border-warning mb-4">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">📋 Currently Borrowed Tools (Direct Return Panel)</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Tool ID</th>
+                                <th>Tool Name</th>
+                                <th>Borrowed By</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="borrowed-table-body">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Checking active borrowings...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal for Adding a Tool -->
+    <!-- Add Tool Modal -->
     <div class="modal fade" id="addToolModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Add New Tool</h5>
+                    <h5 class="modal-title">Add New Construction Tool</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="addToolForm">
+                    <form id="add-tool-form">
                         <div class="mb-3">
-                            <label class="form-label">Tool ID (e.g., TOOL-001)</label>
-                            <input type="text" class="form-control" id="toolIdInput" required>
+                            <label class="form-label">Tool ID (e.g. TOOL-004)</label>
+                            <input type="text" class="form-control" id="new-tool-id" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Tool Name (e.g., Heavy Duty Drill)</label>
-                            <input type="text" class="form-control" id="toolNameInput" required>
+                            <label class="form-label">Tool Name</label>
+                            <input type="text" class="form-control" id="new-tool-name" required>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">Save Tool</button>
+                        <button type="submit" class="btn btn-primary w-100">Save Tool to Cloud</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- Firebase SDK (Modular v10) -->
+    <!-- Firebase SDK & Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ⚠️ ILAGAY DITO ANG SARILI MONG FIREBASE CONFIG
         const firebaseConfig = {
-  apiKey: "AIzaSyDdmaBBGzrw8LN3Cg_WvzxxqLy4pTS9VMU",
-  authDomain: "qr-tool-inventory.firebaseapp.com",
-  projectId: "qr-tool-inventory",
-  storageBucket: "qr-tool-inventory.firebasestorage.app",
-  messagingSenderId: "833534977362",
-  appId: "1:833534977362:web:23c9944c47e0ca97b8868b",
-  measurementId: "G-GE9CPP1RZR"
-};
-
+            apiKey: "YOUR_API_KEY",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcde"
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -88,78 +105,111 @@
             { id: "TOOL-003", name: "Aluminum Ladder 8ft", status: "Available", borrower: "" }
         ];
 
-        async function loadTools() {
-            let grid = document.getElementById('tools-grid');
-            try {
-                // Subukang i-save ang default tools kung wala pa
+        async function initDatabase() {
+            const querySnapshot = await getDocs(collection(db, "tools"));
+            if (querySnapshot.empty) {
                 for (let tool of defaultTools) {
-                    await setDoc(doc(db, "tools", tool.id), tool, { merge: true });
+                    await setDoc(doc(db, "tools", tool.id), tool);
                 }
-
-                const querySnapshot = await getDocs(collection(db, "tools"));
-                grid.innerHTML = '';
-
-                if (querySnapshot.empty) {
-                    grid.innerHTML = `<div class="text-center w-100"><p>No tools found.</p></div>`;
-                    return;
-                }
-
-                querySnapshot.forEach((docSnap) => {
-                    let tool = docSnap.data();
-                    let badgeClass = tool.status === 'Available' ? 'bg-success' : 'bg-danger';
-                    let cardHTML = `
-                        <div class="col-md-4 mb-4">
-                            <div class="card h-100 shadow-sm text-center p-3">
-                                <h5 class="fw-bold">${tool.name}</h5>
-                                <p class="text-muted small mb-2">ID: ${tool.id}</p>
-                                <div class="my-2 d-flex justify-content-center">
-                                    <div id="qrcode-${tool.id}"></div>
-                                </div>
-                                <div class="mt-2">
-                                    <span class="badge ${badgeClass} mb-2">${tool.status}</span>
-                                    ${tool.borrower ? `<p class="small text-danger mb-0">Borrowed by: <strong>${tool.borrower}</strong></p>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    grid.innerHTML += cardHTML;
-                });
-
-                querySnapshot.forEach((docSnap) => {
-                    let tool = docSnap.data();
-                    let qrContainer = document.getElementById(`qrcode-${tool.id}`);
-                    if (qrContainer) {
-                        qrContainer.innerHTML = ""; 
-                        let baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-                        let targetUrl = baseUrl + `scanner.html?id=${tool.id}`;
-
-                        new QRCode(qrContainer, {
-                            text: targetUrl,
-                            width: 128,
-                            height: 128
-                        });
-                    }
-                });
-
-            } catch (error) {
-                console.error("Error loading tools: ", error);
-                grid.innerHTML = `
-                    <div class="alert alert-danger w-100">
-                        <strong>May error sa pagkonekta sa Firebase:</strong> ${error.message}
-                        <br><br>Paki-check ang iyong Firebase Configuration o ang Firestore Database Rules.
-                    </div>`;
             }
         }
 
-        window.openAddModal = function() {
-            let myModal = new bootstrap.Modal(document.getElementById('addToolModal'));
-            myModal.show();
+        function loadToolsRealtime() {
+            const grid = document.getElementById('tools-grid');
+            const borrowedTableBody = document.getElementById('borrowed-table-body');
+            const statusMsg = document.getElementById('status-message');
+
+            onSnapshot(collection(db, "tools"), (snapshot) => {
+                grid.innerHTML = '';
+                borrowedTableBody.innerHTML = '';
+                let borrowedCount = 0;
+
+                if (snapshot.empty) {
+                    statusMsg.className = "alert alert-warning py-2";
+                    statusMsg.innerText = "Walang makitang tools sa database.";
+                    return;
+                }
+
+                statusMsg.className = "alert alert-success py-2";
+                statusMsg.innerText = "Nakakonekta na sa Cloud Database (Real-time Sync Active)";
+
+                snapshot.forEach((docSnap) => {
+                    const tool = docSnap.data();
+                    
+                    // 1. Render Grid Cards
+                    const isBorrowed = tool.status === "Borrowed";
+                    const statusBadge = isBorrowed 
+                        ? `<span class="badge bg-danger">Borrowed: ${tool.borrower}</span>` 
+                        : `<span class="badge bg-success">Available</span>`;
+                    
+                    const col = document.createElement('div');
+                    col.className = 'col';
+                    col.innerHTML = `
+                        <div class="card h-100 shadow-sm text-center p-3">
+                            <h5 class="card-title">${tool.name}</h5>
+                            <p class="text-muted small mb-2">ID: ${tool.id}</p>
+                            <div id="qrcode-${tool.id}" class="d-flex justify-content-center my-2"></div>
+                            <div class="mt-2">${statusBadge}</div>
+                        </div>
+                    `;
+                    grid.appendChild(col);
+
+                    // Generate QR code pointing to scanner page
+                    const scannerUrl = `${window.location.origin}${window.location.pathname.replace('index.html', '')}scanner.html?id=${tool.id}`;
+                    new QRCode(document.getElementById(`qrcode-${tool.id}`), {
+                        text: scannerUrl,
+                        width: 128,
+                        height: 128
+                    });
+
+                    // 2. Render Borrowed Table List for Laptop Management
+                    if (isBorrowed) {
+                        borrowedCount++;
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>${tool.id}</strong></td>
+                            <td>${tool.name}</td>
+                            <td><span class="text-danger fw-bold">${tool.borrower}</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-success return-btn" data-id="${tool.id}">
+                                    Return Tool
+                                </button>
+                            </td>
+                        `;
+                        borrowedTableBody.appendChild(tr);
+                    }
+                });
+
+                if (borrowedCount === 0) {
+                    borrowedTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">Walang kasalukuyang nakahiram na tools.</td></tr>`;
+                }
+
+                // Attach event listeners for Return buttons on dashboard
+                document.querySelectorAll('.return-btn').forEach(button => {
+                    button.addEventListener('click', async (e) => {
+                        const toolId = e.target.getAttribute('data-id');
+                        try {
+                            const toolRef = doc(db, "tools", toolId);
+                            await updateDoc(toolRef, {
+                                status: "Available",
+                                borrower: ""
+                            });
+                        } catch (err) {
+                            alert("May error sa pag-uli ng tool: " + err.message);
+                        }
+                    });
+                });
+            }, (error) => {
+                statusMsg.className = "alert alert-danger py-2";
+                statusMsg.innerText = "May error sa pagkonekta sa Firebase: " + error.message;
+            });
         }
 
-        document.getElementById('addToolForm').addEventListener('submit', async function(e) {
+        // Handle Add Tool Form
+        document.getElementById('add-tool-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            let id = document.getElementById('toolIdInput').value.trim();
-            let name = document.getElementById('toolNameInput').value.trim();
+            const id = document.getElementById('new-tool-id').value.trim();
+            const name = document.getElementById('new-tool-name').value.trim();
 
             try {
                 await setDoc(doc(db, "tools", id), {
@@ -168,15 +218,17 @@
                     status: "Available",
                     borrower: ""
                 });
-                alert('Tool added successfully!');
-                location.reload();
-            } catch (error) {
-                console.error("Error adding tool: ", error);
-                alert('Failed to add tool: ' + error.message);
+                bootstrap.Modal.getInstance(document.getElementById('addToolModal')).hide();
+                document.getElementById('add-tool-form').reset();
+            } catch (err) {
+                alert("Error sa pag-save: " + err.message);
             }
         });
 
-        window.onload = loadTools;
+        initDatabase().then(() => {
+            loadToolsRealtime();
+        });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
