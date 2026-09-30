@@ -28,7 +28,7 @@
 
         <!-- Tools Grid List -->
         <div class="row" id="tools-grid">
-            <div class="text-center py-5">
+            <div class="text-center py-5" id="loading-text">
                 <p>Loading tools from cloud database...</p>
             </div>
         </div>
@@ -67,84 +67,86 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, getDocs, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // ⚠️ PALITAN ITO NG SARILI MONG FIREBASE CONFIG
-       const firebaseConfig = {
-    apiKey: "AIzaSy...",
-    authDomain: "your-project.firebaseapp.com",
-    projectId: "your-project",
-    storageBucket: "your-project.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abcde"
-};
+        // ⚠️ ILAGAY DITO ANG SARILI MONG FIREBASE CONFIG
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Default mock data kung sakaling wala pang laman ang Firestore
         const defaultTools = [
             { id: "TOOL-001", name: "Makita Rotary Hammer", status: "Available", borrower: "" },
             { id: "TOOL-002", name: "Bosch Angle Grinder", status: "Available", borrower: "" },
             { id: "TOOL-003", name: "Aluminum Ladder 8ft", status: "Available", borrower: "" }
         ];
 
-        async function initToolsInFirestore() {
-            const querySnapshot = await getDocs(collection(db, "tools"));
-            if (querySnapshot.empty) {
-                for (let tool of defaultTools) {
-                    await setDoc(doc(db, "tools", tool.id), tool);
-                }
-            }
-        }
-
         async function loadTools() {
-            await initToolsInFirestore();
-            const querySnapshot = await getDocs(collection(db, "tools"));
             let grid = document.getElementById('tools-grid');
-            grid.innerHTML = '';
+            try {
+                // Subukang i-save ang default tools kung wala pa
+                for (let tool of defaultTools) {
+                    await setDoc(doc(db, "tools", tool.id), tool, { merge: true });
+                }
 
-            if (querySnapshot.empty) {
-                grid.innerHTML = `<div class="text-center"><p>No tools found.</p></div>`;
-                return;
-            }
+                const querySnapshot = await getDocs(collection(db, "tools"));
+                grid.innerHTML = '';
 
-            querySnapshot.forEach((docSnap) => {
-                let tool = docSnap.data();
-                let badgeClass = tool.status === 'Available' ? 'bg-success' : 'bg-danger';
-                let cardHTML = `
-                    <div class="col-md-4 mb-4">
-                        <div class="card h-100 shadow-sm text-center p-3">
-                            <h5 class="fw-bold">${tool.name}</h5>
-                            <p class="text-muted small mb-2">ID: ${tool.id}</p>
-                            <div class="my-2 d-flex justify-content-center">
-                                <div id="qrcode-${tool.id}"></div>
-                            </div>
-                            <div class="mt-2">
-                                <span class="badge ${badgeClass} mb-2">${tool.status}</span>
-                                ${tool.borrower ? `<p class="small text-danger mb-0">Borrowed by: <strong>${tool.borrower}</strong></p>` : ''}
+                if (querySnapshot.empty) {
+                    grid.innerHTML = `<div class="text-center w-100"><p>No tools found.</p></div>`;
+                    return;
+                }
+
+                querySnapshot.forEach((docSnap) => {
+                    let tool = docSnap.data();
+                    let badgeClass = tool.status === 'Available' ? 'bg-success' : 'bg-danger';
+                    let cardHTML = `
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100 shadow-sm text-center p-3">
+                                <h5 class="fw-bold">${tool.name}</h5>
+                                <p class="text-muted small mb-2">ID: ${tool.id}</p>
+                                <div class="my-2 d-flex justify-content-center">
+                                    <div id="qrcode-${tool.id}"></div>
+                                </div>
+                                <div class="mt-2">
+                                    <span class="badge ${badgeClass} mb-2">${tool.status}</span>
+                                    ${tool.borrower ? `<p class="small text-danger mb-0">Borrowed by: <strong>${tool.borrower}</strong></p>` : ''}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
-                grid.innerHTML += cardHTML;
-            });
+                    `;
+                    grid.innerHTML += cardHTML;
+                });
 
-            // I-generate ang QR code para sa bawat tool
-            querySnapshot.forEach((docSnap) => {
-                let tool = docSnap.data();
-                let qrContainer = document.getElementById(`qrcode-${tool.id}`);
-                if (qrContainer) {
-                    qrContainer.innerHTML = ""; 
-                    let baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-                    let targetUrl = baseUrl + `scanner.html?id=${tool.id}`;
+                querySnapshot.forEach((docSnap) => {
+                    let tool = docSnap.data();
+                    let qrContainer = document.getElementById(`qrcode-${tool.id}`);
+                    if (qrContainer) {
+                        qrContainer.innerHTML = ""; 
+                        let baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+                        let targetUrl = baseUrl + `scanner.html?id=${tool.id}`;
 
-                    new QRCode(qrContainer, {
-                        text: targetUrl,
-                        width: 128,
-                        height: 128
-                    });
-                }
-            });
+                        new QRCode(qrContainer, {
+                            text: targetUrl,
+                            width: 128,
+                            height: 128
+                        });
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error loading tools: ", error);
+                grid.innerHTML = `
+                    <div class="alert alert-danger w-100">
+                        <strong>May error sa pagkonekta sa Firebase:</strong> ${error.message}
+                        <br><br>Paki-check ang iyong Firebase Configuration o ang Firestore Database Rules.
+                    </div>`;
+            }
         }
 
         window.openAddModal = function() {
@@ -168,7 +170,7 @@
                 location.reload();
             } catch (error) {
                 console.error("Error adding tool: ", error);
-                alert('Failed to add tool.');
+                alert('Failed to add tool: ' + error.message);
             }
         });
 
