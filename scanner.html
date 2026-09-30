@@ -14,7 +14,7 @@
             <h3 class="mb-3 text-center">🔧 Tool Details</h3>
             
             <div id="loading-view" class="text-center py-4">
-                <p>Reading QR Code...</p>
+                <p>Loading tool details from cloud...</p>
             </div>
 
             <div id="tool-content" style="display: none;">
@@ -41,29 +41,30 @@
         </div>
     </div>
 
-    <script>
-        // Default tools para magtugma sa index.html
-        let defaultTools = [
-            { id: "TOOL-001", name: "Makita Rotary Hammer", status: "Available", borrower: "" },
-            { id: "TOOL-002", name: "Bosch Angle Grinder", status: "Available", borrower: "" },
-            { id: "TOOL-003", name: "Aluminum Ladder 8ft", status: "Available", borrower: "" }
-        ];
+    <!-- Firebase SDK & Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        function getTools() {
-            let tools = localStorage.getItem('construction_tools');
-            if (!tools) {
-                localStorage.setItem('construction_tools', JSON.stringify(defaultTools));
-                return defaultTools;
-            }
-            return JSON.parse(tools);
-        }
+        // ⚠️ PALITAN ITO NG PAREHO MONG FIREBASE CONFIG
+        const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "...",
+  appId: "..."
+};
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
         function getQueryParams() {
             const params = new URLSearchParams(window.location.search);
             return params.get('id');
         }
 
-        function loadToolData() {
+        async function loadToolData() {
             let toolId = getQueryParams();
             let loadingView = document.getElementById('loading-view');
             let toolContent = document.getElementById('tool-content');
@@ -73,74 +74,76 @@
                 return;
             }
 
-            let tools = getTools();
-            let tool = tools.find(t => t.id === toolId);
+            try {
+                const docRef = doc(db, "tools", toolId);
+                const docSnap = await getDoc(docRef);
 
-            loadingView.style.display = 'none';
-            toolContent.style.display = 'block';
+                loadingView.style.display = 'none';
+                toolContent.style.display = 'block';
 
-            if (!tool) {
-                document.getElementById('tool-content').innerHTML = `<div class="alert alert-danger">Tool not found with ID: ${toolId}</div>`;
-                return;
-            }
+                if (!docSnap.exists()) {
+                    document.getElementById('tool-content').innerHTML = `<div class="alert alert-danger">Tool not found with ID: ${toolId}</div>`;
+                    return;
+                }
 
-            document.getElementById('display-id').innerText = tool.id;
-            document.getElementById('display-name').innerText = tool.name;
-            
-            let statusBadge = document.getElementById('display-status');
-            let borrowerInfo = document.getElementById('display-borrower-info');
-            let actionContainer = document.getElementById('action-container');
+                let tool = docSnap.data();
 
-            if (tool.status === 'Available') {
-                statusBadge.className = 'badge bg-success fs-6';
-                statusBadge.innerText = 'Available';
-                borrowerInfo.innerText = '';
+                document.getElementById('display-id').innerText = tool.id;
+                document.getElementById('display-name').innerText = tool.name;
+                
+                let statusBadge = document.getElementById('display-status');
+                let borrowerInfo = document.getElementById('display-borrower-info');
+                let actionContainer = document.getElementById('action-container');
 
-                actionContainer.innerHTML = `
-                    <div class="mb-3">
-                        <label class="form-label">Borrower Name:</label>
-                        <input type="text" id="borrowerNameInput" class="form-control" placeholder="Enter name..." required>
-                    </div>
-                    <button onclick="borrowTool('${tool.id}')" class="btn btn-primary w-100 py-2">Record Borrow</button>
-                `;
-            } else {
-                statusBadge.className = 'badge bg-danger fs-6';
-                statusBadge.innerText = 'Borrowed';
-                borrowerInfo.innerText = `Borrowed by: ${tool.borrower}`;
+                if (tool.status === 'Available') {
+                    statusBadge.className = 'badge bg-success fs-6';
+                    statusBadge.innerText = 'Available';
+                    borrowerInfo.innerText = '';
 
-                actionContainer.innerHTML = `
-                    <button onclick="returnTool('${tool.id}')" class="btn btn-success w-100 py-2">Return Tool</button>
-                `;
-            }
-        }
+                    actionContainer.innerHTML = `
+                        <div class="mb-3">
+                            <label class="form-label">Borrower Name:</label>
+                            <input type="text" id="borrowerNameInput" class="form-control" placeholder="Enter worker name..." required>
+                        </div>
+                        <button id="borrowBtn" class="btn btn-primary w-100 py-2">Record Borrow</button>
+                    `;
 
-        function borrowTool(toolId) {
-            let nameInput = document.getElementById('borrowerNameInput').value.trim();
-            if (!nameInput) {
-                alert('Please enter the borrower name.');
-                return;
-            }
+                    document.getElementById('borrowBtn').addEventListener('click', async () => {
+                        let nameInput = document.getElementById('borrowerNameInput').value.trim();
+                        if (!nameInput) {
+                            alert('Please enter the borrower name.');
+                            return;
+                        }
+                        await updateDoc(docRef, {
+                            status: 'Borrowed',
+                            borrower: nameInput
+                        });
+                        alert('Borrow recorded successfully!');
+                        location.reload();
+                    });
 
-            let tools = getTools();
-            let index = tools.findIndex(t => t.id === toolId);
-            if (index !== -1) {
-                tools[index].status = 'Borrowed';
-                tools[index].borrower = nameInput;
-                localStorage.setItem('construction_tools', JSON.stringify(tools));
-                alert('Borrow recorded successfully!');
-                location.reload();
-            }
-        }
+                } else {
+                    statusBadge.className = 'badge bg-danger fs-6';
+                    statusBadge.innerText = 'Borrowed';
+                    borrowerInfo.innerText = `Borrowed by: ${tool.borrower}`;
 
-        function returnTool(toolId) {
-            let tools = getTools();
-            let index = tools.findIndex(t => t.id === toolId);
-            if (index !== -1) {
-                tools[index].status = 'Available';
-                tools[index].borrower = '';
-                localStorage.setItem('construction_tools', JSON.stringify(tools));
-                alert('Tool returned successfully!');
-                location.reload();
+                    actionContainer.innerHTML = `
+                        <button id="returnBtn" class="btn btn-success w-100 py-2">Return Tool</button>
+                    `;
+
+                    document.getElementById('returnBtn').addEventListener('click', async () => {
+                        await updateDoc(docRef, {
+                            status: 'Available',
+                            borrower: ''
+                        });
+                        alert('Tool returned successfully! Available for borrowing again.');
+                        location.reload();
+                    });
+                }
+
+            } catch (error) {
+                console.error("Error getting tool:", error);
+                loadingView.innerHTML = `<div class="alert alert-danger">Error loading data from cloud.</div>`;
             }
         }
 
