@@ -3,40 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tool Status & Action</title>
+    <title>Tool Checkout / Check-in</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
 
-    <div class="container py-5" style="max-width: 500px;">
-        <div class="card shadow p-4">
-            <h3 class="mb-3 text-center">🔧 Tool Details</h3>
-            
-            <div id="loading-view" class="text-center py-4">
-                <p>Loading tool details from cloud...</p>
-            </div>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow">
+                    <div class="card-body p-4">
+                        <h3 class="card-title text-center mb-4">🔧 Tool Details</h3>
+                        
+                        <div id="loading-view" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2 text-muted">Binabasa ang detalye ng tool mula sa cloud...</p>
+                        </div>
 
-            <div id="tool-content" style="display: none;">
-                <div class="mb-3">
-                    <label class="form-label text-muted">Tool ID</label>
-                    <h4 id="display-id" class="fw-bold"></h4>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted">Tool Name</label>
-                    <h4 id="display-name" class="text-primary"></h4>
-                </div>
-                <div class="mb-4">
-                    <label class="form-label text-muted">Current Status</label>
-                    <div><span id="display-status" class="badge fs-6"></span></div>
-                    <p id="display-borrower-info" class="mt-2 text-danger fw-semibold"></p>
-                </div>
+                        <div id="tool-content" style="display: none;">
+                            <div class="mb-3">
+                                <label class="text-muted small">Tool ID</label>
+                                <h4 id="display-id" class="fw-bold"></h4>
+                            </div>
+                            <div class="mb-3">
+                                <label class="text-muted small">Tool Name</label>
+                                <h4 id="display-name" class="text-primary"></h4>
+                            </div>
+                            <div class="mb-4">
+                                <label class="text-muted small">Current Status</label>
+                                <div>
+                                    <span id="display-status" class="badge fs-5"></span>
+                                </div>
+                                <div id="display-borrower-container" class="mt-2" style="display: none;">
+                                    <span id="display-borrower" class="text-danger fw-bold"></span>
+                                </div>
+                            </div>
 
-                <div id="action-container"></div>
-            </div>
+                            <!-- Action Form -->
+                            <div id="action-area">
+                                <!-- Checkout Form -->
+                                <div id="checkout-form" class="mb-3" style="display: none;">
+                                    <label class="form-label fw-bold">Pangalan ng Manghihiram:</label>
+                                    <input type="text" id="borrower-name" class="form-control mb-2" placeholder="Ilagay ang iyong pangalan">
+                                    <button id="btn-borrow" class="btn btn-primary w-100 py-2">I-borrow ang Tool na Ito</button>
+                                </div>
 
-            <div class="mt-4 text-center">
-                <a href="index.html" class="btn btn-secondary w-100">Back to List</a>
+                                <!-- Return Button -->
+                                <div id="return-form" class="mb-3" style="display: none;">
+                                    <button id="btn-return" class="btn btn-success w-100 py-2">I-Return / Isoli ang Tool</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 text-center">
+                            <a href="index.html" class="btn btn-secondary w-100">Bumalik sa Dashboard / Listahan</a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -47,16 +71,14 @@
         import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ⚠️ PALITAN ITO NG PAREHO MONG FIREBASE CONFIG
-      const firebaseConfig = {
-  apiKey: "AIzaSyDdmaBBGzrw8LN3Cg_WvzxxqLy4pTS9VMU",
-  authDomain: "qr-tool-inventory.firebaseapp.com",
-  projectId: "qr-tool-inventory",
-  storageBucket: "qr-tool-inventory.firebasestorage.app",
-  messagingSenderId: "833534977362",
-  appId: "1:833534977362:web:23c9944c47e0ca97b8868b",
-  measurementId: "G-GE9CPP1RZR"
-};
-
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcde"
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -67,12 +89,12 @@
         }
 
         async function loadToolData() {
-            let toolId = getQueryParams();
-            let loadingView = document.getElementById('loading-view');
-            let toolContent = document.getElementById('tool-content');
+            const toolId = getQueryParams();
+            const loadingView = document.getElementById('loading-view');
+            const toolContent = document.getElementById('tool-content');
 
             if (!toolId) {
-                loadingView.innerHTML = `<div class="alert alert-danger">No Tool ID found in QR Code.</div>`;
+                loadingView.innerHTML = `<div class="alert alert-danger">Walang napiling Tool ID sa QR Code.</div>`;
                 return;
             }
 
@@ -80,76 +102,77 @@
                 const docRef = doc(db, "tools", toolId);
                 const docSnap = await getDoc(docRef);
 
-                loadingView.style.display = 'none';
-                toolContent.style.display = 'block';
+                if (docSnap.exists()) {
+                    const tool = docSnap.data();
+                    
+                    document.getElementById('display-id').innerText = tool.id;
+                    document.getElementById('display-name').innerText = tool.name;
+                    
+                    const statusBadge = document.getElementById('display-status');
+                    const borrowerContainer = document.getElementById('display-borrower-container');
+                    const borrowerSpan = document.getElementById('display-borrower');
+                    
+                    const checkoutForm = document.getElementById('checkout-form');
+                    const returnForm = document.getElementById('return-form');
 
-                if (!docSnap.exists()) {
-                    document.getElementById('tool-content').innerHTML = `<div class="alert alert-danger">Tool not found with ID: ${toolId}</div>`;
-                    return;
-                }
+                    if (tool.status === "Borrowed") {
+                        statusBadge.className = "badge bg-danger fs-5";
+                        statusBadge.innerText = "Borrowed";
+                        borrowerContainer.style.display = "block";
+                        borrowerSpan.innerText = `Nakahiram kay: ${tool.borrower}`;
+                        
+                        checkoutForm.style.display = "none";
+                        returnForm.style.display = "block";
+                    } else {
+                        statusBadge.className = "badge bg-success fs-5";
+                        statusBadge.innerText = "Available";
+                        borrowerContainer.style.display = "none";
+                        
+                        checkoutForm.style.display = "block";
+                        returnForm.style.display = "none";
+                    }
 
-                let tool = docSnap.data();
+                    loadingView.style.display = "none";
+                    toolContent.style.display = "block";
 
-                document.getElementById('display-id').innerText = tool.id;
-                document.getElementById('display-name').innerText = tool.name;
-                
-                let statusBadge = document.getElementById('display-status');
-                let borrowerInfo = document.getElementById('display-borrower-info');
-                let actionContainer = document.getElementById('action-container');
-
-                if (tool.status === 'Available') {
-                    statusBadge.className = 'badge bg-success fs-6';
-                    statusBadge.innerText = 'Available';
-                    borrowerInfo.innerText = '';
-
-                    actionContainer.innerHTML = `
-                        <div class="mb-3">
-                            <label class="form-label">Borrower Name:</label>
-                            <input type="text" id="borrowerNameInput" class="form-control" placeholder="Enter worker name..." required>
-                        </div>
-                        <button id="borrowBtn" class="btn btn-primary w-100 py-2">Record Borrow</button>
-                    `;
-
-                    document.getElementById('borrowBtn').addEventListener('click', async () => {
-                        let nameInput = document.getElementById('borrowerNameInput').value.trim();
-                        if (!nameInput) {
-                            alert('Please enter the borrower name.');
+                    // Handle Borrow Action
+                    document.getElementById('btn-borrow').onclick = async () => {
+                        const borrowerInput = document.getElementById('borrower-name').value.trim();
+                        if (!borrowerInput) {
+                            alert("Mangyaring ilagay ang pangalan ng manghihiram.");
                             return;
                         }
+
                         await updateDoc(docRef, {
-                            status: 'Borrowed',
-                            borrower: nameInput
+                            status: "Borrowed",
+                            borrower: borrowerInput
                         });
-                        alert('Borrow recorded successfully!');
-                        location.reload();
-                    });
+                        alert("Matagumpay na nailista na hiniram ni " + borrowerInput);
+                        window.location.reload();
+                    };
+
+                    // Handle Return Action
+                    document.getElementById('btn-return').onclick = async () => {
+                        if (confirm("Sigurado ka bang naibalik na ang tool na ito?")) {
+                            await updateDoc(docRef, {
+                                status: "Available",
+                                borrower: ""
+                            });
+                            alert("Naibalik na ang tool at naging Available ulit!");
+                            window.location.reload();
+                        }
+                    };
 
                 } else {
-                    statusBadge.className = 'badge bg-danger fs-6';
-                    statusBadge.innerText = 'Borrowed';
-                    borrowerInfo.innerText = `Borrowed by: ${tool.borrower}`;
-
-                    actionContainer.innerHTML = `
-                        <button id="returnBtn" class="btn btn-success w-100 py-2">Return Tool</button>
-                    `;
-
-                    document.getElementById('returnBtn').addEventListener('click', async () => {
-                        await updateDoc(docRef, {
-                            status: 'Available',
-                            borrower: ''
-                        });
-                        alert('Tool returned successfully! Available for borrowing again.');
-                        location.reload();
-                    });
+                    loadingView.innerHTML = `<div class="alert alert-danger">Hindi natagpuan ang tool na may ID na: ${toolId}</div>`;
                 }
-
-            } catch (error) {
-                console.error("Error getting tool:", error);
-                loadingView.innerHTML = `<div class="alert alert-danger">Error loading data from cloud.</div>`;
+            } catch (err) {
+                loadingView.innerHTML = `<div class="alert alert-danger">Error sa pagkonekta: ${err.message}</div>`;
             }
         }
 
-        window.onload = loadToolData;
+        loadToolData();
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
