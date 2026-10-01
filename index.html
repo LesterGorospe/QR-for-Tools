@@ -248,17 +248,11 @@
 
         // Print QR Codes button trigger
         document.getElementById('print-qr-btn').addEventListener('click', () => {
-            // Temporarily override print media rules to print only the QR section
-            const originalStyle = document.createElement('style');
             window.print();
         });
 
         // Print Borrowed List button trigger
         document.getElementById('print-borrowed-btn').addEventListener('click', () => {
-            // To print borrowed list, we can temporarily swap print styles or handle it. 
-            // Let's use a simpler approach: print dialog will use standard print if needed, 
-            // but since we configured media print for QR, let's make a dedicated handler or keep it simple.
-            // Actually, let's keep the print function focused on QR codes as requested, or let user use browser print.
             window.print();
         });
 
